@@ -10,19 +10,26 @@ Original file is located at
 import pandas as pd
 import numpy as np
 import random # used to randomly choose a word from list of words
+import string # needed to remove punctation from words
+
+def remove_punc(word, punc_set = string.punctuation):
+  return ''.join(ch for ch in word if ch not in punc_set)
 
 """Preprocess File"""
 
 def parse_txt_file(filename="/content/nursery_rhymes.txt"):
   words = []
+  
   with open(filename) as file:
     line = file.read()
     # replacing line breaks and carriage return with a space char
     line = line.replace('\r', ' ').replace('\n', ' ').strip()
+    
     # splitting line str into list of words
     new_words = line.split(' ')
     # filter out empty and space chars
-    new_words = [word for word in new_words if word not in ['', ' ']]
+    new_words = [word.lower() for word in new_words if word not in ['', ' ']]
+    new_words = [remove_punc(word) for word in new_words]
     # assign new words to words list
     words = words + new_words
   return words
@@ -31,7 +38,8 @@ words = parse_txt_file()
 
 # Show count of many words there are
 print(f'Corpus size: {len(words)} words.')
-print(words)
+# print a few words to show parsing worked
+print(words[slice(10)])
 
 """Build the transition probabilities
 
@@ -147,4 +155,3 @@ gen_nusery_rhymes()
 
 
 """
-
