@@ -8,129 +8,41 @@ Original file is located at
 """
 
 # Tarek El-Hajjaoui
-import tensorflow as tf
-import numpy as np
-import pandas as pd
-import string # needed to remove punctation from words
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, LSTM, Dropout, Activation, Embedding, Bidirectional
-from sklearn.model_selection import train_test_split
+import numpy
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import LSTM
+from keras.callbacks import ModelCheckpoint
+from keras.utils import np_utils
+
+import string
 
 def remove_punc(word, punc_set = string.punctuation):
   return ''.join(ch for ch in word if ch not in punc_set)
 
-# lambda helper func
-is_new_cat = lambda line : True if (len(line) != 0 and line[-1].isupper()) else False
-
-def parse_txt_file_str(filename="/content/nursery_rhymes.txt"):
-  parse_dict = {}
-  curr_cat = ""
-  with open(filename) as file:
-    print(parse_dict)
+# get the text from the file
+def gen_corpus_from_file(in_file="/content/nursery_rhymes.txt", 
+                         out_file="/content/parsed_txt.txt"):
+  headers_lst = []
+  rhymes_lst = []
+  skip_ln = lambda ln : True if (ln == "") else False
+  is_header = lambda ln : True if (ln[-1].isupper()) else False
+  with open(in_file) as file:
     for line in file:
       strip_line = line.replace('\r', ' ').replace('\n', ' ').strip()
-      if len(strip_line) == 0:
-        continue
-      new_category = is_new_cat(strip_line)
-      if new_category:
-        lower_cat = strip_line.lower().replace('_', ' ')
-        if lower_cat not in parse_dict:
-          parse_dict[lower_cat] = []
-          curr_cat = lower_cat
+      if skip_ln(strip_line): continue
+      if is_header(strip_line):
+        headers_lst.append(strip_line)
       else:
-        new_words = strip_line.split(' ')
-        new_words = [word.lower() for word in new_words if word not in ['', ' ']]
-        new_words = [remove_punc(word) for word in new_words]
-        # assign new words to words list
-        parse_dict[curr_cat] += new_words
-  # returns dict with the key being the category of rhymes, values being
-  # strings of rhymes concatenated to each other
-  return parse_dict
+        rhyme = remove_punc(strip_line.lower())
+        rhymes_lst.append(rhyme)
+  rhymes = ' '.join(rhymes_lst)
+  del headers_lst
+  del rhymes_lst
+  with open(out_file, "w") as out_f:
+    out_f.write(rhymes)
+  return rhymes
 
-parse_dict = parse_txt_file_str()
-
-def output_parse_data(file="parsed_data.txt", parse_dict=parse_dict):
-  with open(file, "w") as out_file:
-    out_file.write(str(parse_dict))
-
-output_parse_data()
-
-df_dict = {'rhyme_category': [], 'words': []}
-words_lst = []
-# key is rhyme category, value is list of words for that rhyme category
-for key, value in parse_dict.items():
-  df_dict['rhyme_category'].append(remove_punc(key))
-  df_dict['words'].append((' '.join(value)))
-  words_lst.append(value)
-
-df_dict['rhyme_category'] = np.array(df_dict['rhyme_category'])
-df_dict['words'] = np.array(df_dict['words'])
-
-data_frame = pd.DataFrame(df_dict)
-
-data_frame.head()
-
-data_frame.tail()
-
-data_frame.info()
-
-def df_to_csv(file="rhyme_data.csv", data_frame=data_frame):
-  data_frame.to_csv(file)
-
-df_to_csv()
-
-"""Set hyperparameters"""
-
-num_categories = data_frame.shape[0]
-
-vocab_size = 5000 # make the top list of words (common words)
-embedding_dim = 276
-max_length = 200
-trunc_type = 'post'
-padding_type = 'post'
-oov_tok = '<OOV>' # OOV = Out of Vocabulary
-training_portion = .8
-
-type(df_dict['rhyme_category']), type(df_dict['words'])
-
-X = df_dict['rhyme_category']
-y = df_dict['words']
-X.shape, y.shape
-
-# create corpus
-total_words = []
-for row in data_frame['words']:
-  words = row.split(' ')
-  for word in words:
-    total_words.append(word)
-len(total_words)
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=training_portion, random_state=42)
-
-"""DEPRECATED"""
-
-# # lambda helper func
-# is_new_cat = lambda line : True if (len(line) != 0 and line[-1].isupper()) else False
-
-# def parse_txt_file_lst(filename="/content/nursery_rhymes.txt"):
-#   parse_dict = {}
-#   curr_cat = ""
-#   with open(filename) as file:
-#     print(parse_dict)
-#     for line in file:
-#       strip_line = line.replace('\r', ' ').replace('\n', ' ').strip()
-#       if len(strip_line) == 0:
-#         continue
-#       new_category = is_new_cat(strip_line)
-#       if new_category:
-#         if strip_line not in parse_dict:
-#           parse_dict[strip_line] = []
-#           curr_cat = strip_line
-#       else:
-#         parse_dict[curr_cat].append(strip_line)
-#   # returns dict with the key being the category of rhymes, values being
-#   # list of rhymes
-#   return parse_dict
+corpus = gen_corpus_from_file()
 
