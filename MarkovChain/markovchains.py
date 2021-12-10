@@ -17,24 +17,30 @@ def remove_punc(word, punc_set = string.punctuation):
 
 """Preprocess File"""
 
-def parse_txt_file(filename="/content/nursery_rhymes.txt"):
-  words = []
-  
-  with open(filename) as file:
-    line = file.read()
-    # replacing line breaks and carriage return with a space char
-    line = line.replace('\r', ' ').replace('\n', ' ').strip()
-    
-    # splitting line str into list of words
-    new_words = line.split(' ')
-    # filter out empty and space chars
-    new_words = [word.lower() for word in new_words if word not in ['', ' ']]
-    new_words = [remove_punc(word) for word in new_words]
-    # assign new words to words list
-    words = words + new_words
-  return words
+# get the text from the file
+def gen_corpus_from_file(in_file="/content/nursery_rhymes.txt", 
+                         out_file="/content/parsed_txt.txt"):
+  headers_lst = []
+  rhymes_lst = []
+  skip_ln = lambda ln : True if (ln == "") else False
+  is_header = lambda ln : True if (ln[-1].isupper()) else False
+  with open(in_file) as file:
+    for line in file:
+      strip_line = line.replace('\r', ' ').replace('\n', ' ').strip()
+      if skip_ln(strip_line): continue
+      if is_header(strip_line):
+        headers_lst.append(strip_line)
+      else:
+        rhyme = remove_punc(strip_line.lower())
+        rhymes_lst.append(rhyme)
+  rhymes = ' '.join(rhymes_lst)
+  del headers_lst
+  del rhymes_lst
+  with open(out_file, "w") as out_f:
+    out_f.write(rhymes)
+  return rhymes.split(' ')
 
-words = parse_txt_file()
+words = gen_corpus_from_file()
 
 # Show count of many words there are
 print(f'Corpus size: {len(words)} words.')
@@ -138,13 +144,109 @@ def gen_2nd_order_rhyme(chain, words):
 # testing 2nd order method
 for i in range(4): print(gen_2nd_order_rhyme(chain_2, words))
 
-def gen_nusery_rhymes(n_lines=30, output_file="markov_rhymes.txt"):
+"""## Creating MarkovChain Class Model"""
+
+class MarkovChain():
+  def __init__(self, order, words):
+    self.order = order
+    self.words = words
+    self.chain = {}
+    self.created_chain = False
+    if self.order == 1:
+      self.gen_1st_order_chain()
+      self.created_chain = True
+    elif self.order == 2:
+      self.gen_2nd_order_chain()
+      self.created_chain = True
+  def reset_chain(self):
+    self.chain = {}
+    self.order = None
+    self.created_chain = False
+  def set_order(self, order):
+    self.order = order
+  # sets chain to a 1st order Markov Chain
+  def gen_1st_order_chain(self):
+    if self.order != 1:
+      print(f"Error: Cannot create \
+      a 1st order chain when order is set to {self.order}")
+      return
+    if self.created_chain:
+      print(f"Error: A {self.order} chain is \
+      already made. Reset chain (and order) \
+      before creating new chain.")
+      return
+    n_words = len(self.words)  
+    for i, key in enumerate(self.words):  
+        if n_words > (i + 1):
+            word = self.words[i + 1]
+            if key not in self.chain:
+                self.chain[key] = [word]
+            else:
+                self.chain[key].append(word)
+  # 1st order rhyme generator
+  def gen_1st_order_rhyme(self):
+    if self.order != 1:
+      print(f"Error: Cannot produce \
+      a 1st order rhyme when order is set to {self.order}")
+      return
+    rand_rhyme = ""
+    rand_word_1 = random.choice(self.words)
+    rand_rhyme = rand_word_1  
+    rhyme = []
+    rhyme.append(rand_word_1)
+    for i in range(19):  
+        rand_word_2 = random.choice(self.chain[rand_word_1])
+        rhyme.append(rand_word_2)
+        rand_rhyme += ' ' + rand_word_2
+        rand_word_1 = rand_word_2
+    return rand_rhyme
+  # sets chain to a 2nd order Markov Chain
+  def gen_2nd_order_chain(self):
+    if self.order != 2:
+      print(f"Error: Cannot produce \
+      a 2nd order chain when order is set to {self.order}")
+      return
+    if self.created_chain:
+      print(f"Error: A {self.order} chain is \
+      already made. Reset chain (and order) \
+      before creating new chain.")
+      return
+    n_words = len(self.words)  
+    for i, key1 in enumerate(self.words):  
+        if n_words > i + 2:
+            key2 = self.words[i + 1]
+            word = self.words[i + 2]
+            if (key1, key2) not in self.chain:
+                self.chain[(key1, key2)] = [word]
+            else:
+                self.chain[(key1, key2)].append(word)
+  # 2nd order rhyme generator
+  def gen_2nd_order_rhyme(self):
+    if self.order != 2:
+      print(f"Error: Cannot produce \
+      a 2nd order rhyme when order is set to {self.order}")
+      return
+    rhyme_lst = []  
+    rand_word = random.randint(0, len(self.words) - 1)
+    rhyme_lst.append(rand_word)
+    key = (self.words[rand_word], self.words[rand_word + 1])
+    rhyme = key[0] + ' ' + key[1]
+    for i in range(19):
+        rand_word_2 = random.choice(self.chain[key])
+        rhyme_lst.append(rand_word_2)
+        rhyme += ' ' + rand_word_2
+        key = (key[1], rand_word_2)
+    return rhyme
+
+markov_model = MarkovChain(2, words)
+
+def gen_nusery_rhymes(markov_model, n_lines=30, output_file="markov_rhymes.txt"):
   with open(output_file, "w") as out_file:
     for i in range(n_lines):
-      curr_line = gen_2nd_order_rhyme(chain_2, words)
+      curr_line = markov_model.gen_2nd_order_rhyme()
       out_file.write(curr_line + ".\n")
 
-gen_nusery_rhymes()
+gen_nusery_rhymes(markov_model)
 
 """Sources:
 *   Medium article by John Wittenauer: https://medium.com/@jdwittenauer/markov-chains-from-scratch-33340ba6535b
