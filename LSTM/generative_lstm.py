@@ -71,6 +71,7 @@ class LSTM_Text_Generator():
     self.y = None
     self.tokenize_words()
     self.epochs = epochs
+    self.next_seq = ''
     # Sequential is the base of the model
     self.model = Sequential()
   # integer encode sequences of words
@@ -120,6 +121,8 @@ class LSTM_Text_Generator():
       if rand_word != ' ' and len(rand_word) != 0:
         is_valid = True
     return rand_word
+  def reset_next_seq(self):
+    self.next_seq = ''
   # generate a sequence from a language model
   def generate_seq(self, seed_seq='', supress_msg=True):
     if seed_seq == '':
@@ -129,7 +132,10 @@ class LSTM_Text_Generator():
       seed_seq = get_rand_word() + " " + get_rand_word()
       if supress_msg == False:
         print(f"Random pair chosen: {seed_seq}")
+    # when provide the model with a pair of words
     in_text = seed_seq
+    # set the 2nd wor of current sequence as the first for the next sequence
+    self.next_seq = seed_seq.split(' ')[1]
     # encode the text as integer
     encoded = self.tokenizer.texts_to_sequences([in_text])[0]
     # pre-pad sequences to a fixed length
@@ -144,24 +150,24 @@ class LSTM_Text_Generator():
         out_word = word
         break
     # append to input
-    in_text += ' ' + out_word
+    in_text = out_word
+    # set the out word as the 2nd word for next_seq variable
+    self.next_seq += ' ' + out_word
     return in_text
 
 def gen_nusery_rhymes(trained_model, n_lines=30,
                       n_words = 20, output_file="lstm_rhymes.txt"):
   with open(output_file, "w") as out_file:
-    n = n_words
     for i in range(n_lines):
       msg = f"Rhyme {i + 1}: "
-      while n_words > 0:
-        seed_pair = trained_model.get_rand_word() + " " + trained_model.get_rand_word()
-        curr_line = trained_model.generate_seq(seed_pair)
-        msg += curr_line + " "
-        out_file.write(msg)
-        msg = ""
-        n_words -= 3
-      out_file.write("\b.\n")
-      n_words = n
+      seed_pair = trained_model.get_rand_word() + " " + trained_model.get_rand_word()
+      curr_line = trained_model.generate_seq(seed_pair)
+      for n in range(n_words):
+        curr_line += " " + trained_model.generate_seq(trained_model.next_seq)
+      msg += curr_line
+      out_file.write(msg + '\n')
+      msg = ""
+      curr_line = ""
 
 LSTM_Model = LSTM_Text_Generator(corpus, 2, 400)
 
